@@ -1,0 +1,22 @@
+{
+  "name": "cloud-task-placement",
+  "version": "1.0.0",
+  "description": "Latency-aware VM and replica placement using graph algorithms, MST, all-pairs Dijkstra, and exact capacity-aware dynamic programming.",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve .",
+    "test:python": "python cloud_task_placement.py"
+  },
+  "keywords": [
+    "cloud-computing",
+    "task-placement",
+    "dynamic-programming",
+    "dijkstra",
+    "kruskal",
+    "prim",
+    "graph-algorithms",
+    "latency-optimization"
+  ],
+  "author": "asiddhant2405",
+  "license": "MIT"
+}

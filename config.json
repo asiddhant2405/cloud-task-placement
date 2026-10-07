@@ -1,0 +1,122 @@
+{
+ "servers": [
+  "S1",
+  "S2",
+  "S3",
+  "S4",
+  "S5",
+  "S6"
+ ],
+ "capacity": [
+  6,
+  6,
+  6,
+  4,
+  6,
+  6
+ ],
+ "links": [
+  [
+   "S1",
+   "S2",
+   20
+  ],
+  [
+   "S1",
+   "S4",
+   25
+  ],
+  [
+   "S1",
+   "S3",
+   35
+  ],
+  [
+   "S2",
+   "S4",
+   15
+  ],
+  [
+   "S4",
+   "S3",
+   30
+  ],
+  [
+   "S2",
+   "S5",
+   25
+  ],
+  [
+   "S3",
+   "S6",
+   20
+  ],
+  [
+   "S5",
+   "S6",
+   30
+  ],
+  [
+   "S4",
+   "S6",
+   40
+  ]
+ ],
+ "tasks": [
+  {
+   "cpu": 2,
+   "traffic": 20,
+   "anchor": "S4"
+  },
+  {
+   "cpu": 2,
+   "traffic": 30,
+   "anchor": "S4"
+  },
+  {
+   "cpu": 2,
+   "traffic": 25,
+   "anchor": "S2"
+  },
+  {
+   "cpu": 2,
+   "traffic": 90,
+   "anchor": "S4"
+  },
+  {
+   "cpu": 3,
+   "traffic": 85,
+   "anchor": "S2"
+  },
+  {
+   "cpu": 2,
+   "traffic": 40,
+   "anchor": "S1"
+  },
+  {
+   "cpu": 3,
+   "traffic": 75,
+   "anchor": "S4"
+  },
+  {
+   "cpu": 2,
+   "traffic": 35,
+   "anchor": "S3"
+  },
+  {
+   "cpu": 3,
+   "traffic": 60,
+   "anchor": "S2"
+  },
+  {
+   "cpu": 2,
+   "traffic": 50,
+   "anchor": "S5"
+  },
+  {
+   "cpu": 3,
+   "traffic": 45,
+   "anchor": "S6"
+  }
+ ]
+}

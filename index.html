@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Task Placement | Latency-Aware VM Allocation Engine</title>
+  <meta name="description" content="Production-grade cloud task and replica placement simulator using Graph MST (Kruskal & Prim), All-Pairs Dijkstra, and Exact Capacity-Aware Dynamic Programming.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-icon">
+            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+            <circle cx="12" cy="12" r="2" fill="currentColor"/>
+          </svg>
+          <div class="logo-pulse"></div>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title-wrap">
+            <h1 class="brand-title">Cloud Task Placement</h1>
+            <span class="version-badge">v1.0 • Optimal DP</span>
+          </div>
+          <p class="brand-subtitle">Latency-Aware VM & Replica Placement • MST • Dijkstra • Bitmask DP</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="preset-dropdown-wrap">
+          <label for="presetSelect" class="sr-only">Preset Scenario</label>
+          <select id="presetSelect" class="preset-select" aria-label="Select Scenario Preset">
+            <option value="default">Default Report Scenario (6 Servers, 11 Tasks)</option>
+            <option value="dense">High-Traffic Edge Cluster</option>
+            <option value="bottleneck">Constrained Capacity Bottleneck</option>
+            <option value="balanced">Mesh Topology (8 Servers)</option>
+          </select>
+        </div>
+
+        <button id="btnRunPipeline" class="btn btn-primary" title="Execute placement algorithms">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span>Run Optimization</span>
+        </button>
+
+        <button id="btnEditConfig" class="btn btn-secondary" title="Edit servers, links, and tasks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          <span>Config Editor</span>
+        </button>
+
+        <button id="btnBenchmark" class="btn btn-secondary" title="Run scaling runtime benchmarks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          <span>Scaling Test</span>
+        </button>
+
+        <button id="btnExport" class="btn btn-icon-only" title="Export placement report and data">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Top KPI Stats Bar -->
+    <section class="kpi-bar" aria-label="Key Performance Indicators">
+      <div class="kpi-card" id="kpiOptimalLatency">
+        <div class="kpi-header">
+          <span class="kpi-label">Optimal Latency (DP)</span>
+          <span class="badge badge-success">Optimal</span>
+        </div>
+        <div class="kpi-value-wrap">
+          <span class="kpi-value" id="valOptimalLatency">5.59</span>
+          <span class="kpi-unit">ms</span>
+        </div>
+        <div class="kpi-subtext" id="kpiLatencyAdvantage">75.5% faster than First-Fit baseline</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Total Traffic Handled</span>
+          <span class="badge badge-info">Ingress</span>
+        </div>
+        <div class="kpi-value-wrap">
+          <span class="kpi-value" id="valTotalTraffic">555</span>
+          <span class="kpi-unit">req/s</span>
+        </div>
+        <div class="kpi-subtext" id="valTaskCount">Across 11 client tasks</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">CPU Capacity Load</span>
+          <span class="badge badge-accent" id="valFeasibilityBadge">Feasible</span>
+        </div>
+        <div class="kpi-value-wrap">
+          <span class="kpi-value" id="valCpuLoad">26 / 34</span>
+          <span class="kpi-unit" id="valCpuPercent">76.5%</span>
+        </div>
+        <div class="kpi-progress">
+          <div class="kpi-progress-fill" id="valCpuBar" style="width: 76.5%;"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Network Topology</span>
+          <span class="badge badge-purple" id="valMstBadge">MST 110ms</span>
+        </div>
+        <div class="kpi-value-wrap">
+          <span class="kpi-value" id="valTopologyStats">6 Srv • 9 Links</span>
+        </div>
+        <div class="kpi-subtext" id="valGraphLatency">Total link latency: 240 ms</div>
+      </div>
+    </section>
+
+    <!-- Main Workspace Layout -->
+    <main class="main-layout">
+      <!-- Left: Interactive Topology Canvas & Server Cards -->
+      <section class="panel topology-panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title">Network Infrastructure & Topology</h2>
+            <span class="panel-subtitle">Latency graph, MST backbone & live routing overlay</span>
+          </div>
+
+          <div class="topology-controls">
+            <div class="btn-group" role="group" aria-label="Topology Layer Toggles">
+              <button type="button" class="btn-toggle active" data-layer="physical" id="layerPhysicalBtn">Physical Mesh</button>
+              <button type="button" class="btn-toggle" data-layer="mst" id="layerMstBtn">MST Backbone</button>
+              <button type="button" class="btn-toggle" data-layer="routes" id="layerRoutesBtn">Active Routes</button>
+            </div>
+            <button id="btnResetView" class="btn-sm" title="Center graph layout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-xs">
+                <path d="M15 3h6v6"/>
+                <path d="M9 21H3v-6"/>
+                <path d="M21 3l-7 7"/>
+                <path d="M3 21l7-7"/>
+              </svg>
+              <span>Fit</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Graph Canvas Wrapper -->
+        <div class="canvas-container" id="canvasContainer">
+          <canvas id="networkCanvas"></canvas>
+          <div class="canvas-overlay-info" id="canvasOverlayInfo">
+            <span class="status-dot"></span>
+            <span id="canvasOverlayText">Ready • Interactive Node-Link Latency View</span>
+          </div>
+          <div class="canvas-legend">
+            <div class="legend-item"><span class="legend-dot node-dot"></span>Server Node (CPU Meter)</div>
+            <div class="legend-item"><span class="legend-dot link-dot"></span>Link (Latency ms)</div>
+            <div class="legend-item"><span class="legend-dot mst-dot"></span>MST Edge</div>
+            <div class="legend-item"><span class="legend-dot route-dot"></span>Active Task Route</div>
+          </div>
+        </div>
+
+        <!-- Server Capacity Fleet Grid -->
+        <div class="servers-fleet-section">
+          <div class="fleet-header">
+            <h3 class="fleet-title">Server Fleet Allocation & Capacity</h3>
+            <span class="fleet-caption">0 Capacity Violations • Strict Bound Verified</span>
+          </div>
+          <div class="servers-grid" id="serversGrid">
+            <!-- Dynamically populated server cards -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Comparative Analysis & Metrics Suite -->
+      <section class="panel analytics-panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title">Algorithm Performance Comparison</h2>
+            <span class="panel-subtitle">Dynamic Programming vs Heuristic Baselines</span>
+          </div>
+        </div>
+
+        <!-- Comparison Bar Chart & Table -->
+        <div class="comparison-card">
+          <div class="chart-header">
+            <span class="chart-title">Traffic-Weighted Average Latency (Lower is Better)</span>
+            <span class="chart-badge">Target: Min Latency</span>
+          </div>
+
+          <div class="bars-container" id="latencyBarsContainer">
+            <!-- Dynamically populated horizontal bars for algorithms -->
+          </div>
+        </div>
+
+        <!-- Algorithm Insights Grid -->
+        <div class="algo-insights-grid">
+          <div class="insight-box highlight-box">
+            <div class="insight-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>
+              </svg>
+            </div>
+            <div class="insight-body">
+              <h4 class="insight-title">Proposed DP (Exact)</h4>
+              <p class="insight-desc">Computes the global optimal subset partition across servers in <code>O(3^N · M)</code>. Guarantees zero capacity violations and lowest latency (5.59 ms).</p>
+            </div>
+          </div>
+
+          <div class="insight-box">
+            <div class="insight-icon heuristic-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+            </div>
+            <div class="insight-body">
+              <h4 class="insight-title">Greedy by Traffic</h4>
+              <p class="insight-desc">Sorts heavy-traffic tasks first, placing each on the closest feasible server. Achieves 6.40 ms (+14.5% overhead vs optimal DP).</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Summary Metrics -->
+        <div class="quick-summary-card">
+          <h4 class="summary-card-title">Placement Summary Diagnostics</h4>
+          <div class="summary-list">
+            <div class="summary-row">
+              <span class="summary-key">Co-located Zero-Latency Tasks:</span>
+              <span class="summary-val text-success" id="valColocatedTasks">8 of 11 (72.7%)</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Multi-hop Remote Routed Tasks:</span>
+              <span class="summary-val text-warning" id="valRemoteTasks">3 of 11 (27.3%)</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Maximum Single Task Latency:</span>
+              <span class="summary-val" id="valMaxLatency">30 ms (T1 via S4 → S3)</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Average Server CPU Load:</span>
+              <span class="summary-val text-accent" id="valAvgCpuLoad">77.8%</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">MST Weight (Kruskal & Prim):</span>
+              <span class="summary-val text-purple" id="valMstMatch">110 ms (Verified Match)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Deep-Dive Section with Navigation Tabs -->
+    <section class="panel deep-dive-panel">
+      <div class="deep-dive-nav" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="tabPlacement">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span>Task Placements & Routes</span>
+        </button>
+
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tabDijkstra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <circle cx="6" cy="6" r="3"/>
+            <circle cx="18" cy="18" r="3"/>
+            <line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>
+          </svg>
+          <span>All-Pairs Dijkstra Matrix</span>
+        </button>
+
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tabMst">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          <span>MST Algorithms (Kruskal & Prim)</span>
+        </button>
+
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tabTheory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <span>Formulation & DP Math</span>
+        </button>
+
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="tabScaling">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-icon">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 14 14"/>
+          </svg>
+          <span>Scaling & Runtime Benchmark</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: Task Placement & Hop-by-Hop Routes -->
+      <div class="tab-content active" id="tabPlacement">
+        <div class="table-controls">
+          <div class="table-search-wrap">
+            <input type="text" id="taskSearchInput" placeholder="Filter tasks by ID, anchor, host..." class="table-search">
+          </div>
+          <div class="table-legend">
+            <span class="badge badge-success">Co-located (0ms)</span>
+            <span class="badge badge-warning">Routed Remote (&gt;0ms)</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="placementTable">
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Anchor (User/Data)</th>
+                <th>Host (Placed VM)</th>
+                <th>Dijkstra Shortest Route</th>
+                <th>Latency</th>
+                <th>CPU Demand</th>
+                <th>Traffic Load</th>
+                <th>Weighted Impact</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="placementTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: All-Pairs Dijkstra Latency Matrix -->
+      <div class="tab-content" id="tabDijkstra">
+        <div class="tab-description">
+          <p>Shortest latency path <code>D[u][v]</code> between all server pairs computed via Dijkstra's Algorithm with Fibonacci-style priority queue. Hover over any cell to inspect the hop-by-hop route.</p>
+        </div>
+        <div class="matrix-wrapper" id="dijkstraMatrixWrapper">
+          <!-- Dynamically populated matrix table -->
+        </div>
+      </div>
+
+      <!-- Tab 3: MST Algorithms (Kruskal vs Prim) -->
+      <div class="tab-content" id="tabMst">
+        <div class="mst-comparison-grid">
+          <div class="mst-card">
+            <div class="mst-card-header">
+              <h3 class="mst-algo-title">Kruskal's Algorithm</h3>
+              <span class="badge badge-purple" id="kruskalWeightBadge">Total: 110 ms</span>
+            </div>
+            <p class="mst-card-desc">Edge-centric greedy approach. Sorts all <code>E</code> edges by weight, utilizing Disjoint Set Union (DSU) with path compression.</p>
+            <div class="mst-edges-list" id="kruskalEdgesList">
+              <!-- Dynamically populated Kruskal edges -->
+            </div>
+            <div class="mst-complexity">Complexity: <code>O(E log E)</code></div>
+          </div>
+
+          <div class="mst-card">
+            <div class="mst-card-header">
+              <h3 class="mst-algo-title">Prim's Algorithm</h3>
+              <span class="badge badge-purple" id="primWeightBadge">Total: 110 ms</span>
+            </div>
+            <p class="mst-card-desc">Vertex-centric greedy approach. Expands MST frontier from root node using Min-Heap priority queue of incident edges.</p>
+            <div class="mst-edges-list" id="primEdgesList">
+              <!-- Dynamically populated Prim edges -->
+            </div>
+            <div class="mst-complexity">Complexity: <code>O(E log V)</code></div>
+          </div>
+        </div>
+
+        <div class="mst-verification-banner" id="mstVerificationBanner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="banner-icon">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <div>
+            <strong>MST Weights Match: 110 ms</strong> — Both Kruskal and Prim independently verified identical minimum spanning tree weight across all servers.
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Mathematical Model & DP Theory -->
+      <div class="tab-content" id="tabTheory">
+        <div class="theory-layout">
+          <div class="theory-section">
+            <h3 class="theory-heading">Problem Formulation</h3>
+            <p>Given a set of servers $V = \{S_1, \dots, S_m\}$ with capacities $C_j$, a network latency matrix $D[u][v]$, and a set of tasks $T = \{t_1, \dots, t_n\}$ where each task $t_i$ has a CPU demand $c_i$, request traffic volume $\lambda_i$, and an anchor server $a_i$ where user queries originate.</p>
+            <div class="math-block">
+              <code>$$\min_{x} \quad \frac{\sum_{i=1}^n \lambda_i \cdot D[a_i][x_i]}{\sum_{i=1}^n \lambda_i} \quad \text{subject to} \quad \sum_{i: x_i = j} c_i \le C_j \quad \forall j \in \{1,\dots,m\}$$</code>
+            </div>
+            <p>Where $x_i \in \{1,\dots,m\}$ denotes the chosen host server for task $t_i$.</p>
+          </div>
+
+          <div class="theory-section">
+            <h3 class="theory-heading">Dynamic Programming State Formulation</h3>
+            <p>Let $dp[j][S]$ be the minimum latency cost incurred by assigning subset of tasks $S \subseteq \{1,\dots,n\}$ across the first $j$ servers:</p>
+            <div class="math-block">
+              <code>$$dp[j+1][S \cup A] = \min \left\{ dp[j+1][S \cup A], \; dp[j][S] + \text{cost}_j(A) \right\}$$</code>
+            </div>
+            <p>Where $A \subseteq (\text{full} \setminus S)$ is any valid subset of remaining tasks whose combined CPU demand fits server $j$ ($\sum_{t \in A} c_t \le C_j$), and $\text{cost}_j(A) = \sum_{t \in A} \lambda_t \cdot D[a_t][j]$.</p>
+            <p>By enumerating submasks using the classic bitwise trick <code>A = (A - 1) & rest</code>, the total state transitions across all subsets take exactly $\sum_{k=0}^n \binom{n}{k} 2^{n-k} = 3^n$, resulting in an exact global optimum in $O(3^n \cdot m)$ time.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Scaling Benchmark -->
+      <div class="tab-content" id="tabScaling">
+        <div class="scaling-header">
+          <div>
+            <h3 class="theory-heading">Runtime Scaling Analysis vs Number of Tasks</h3>
+            <p class="panel-subtitle">Evaluate solver execution time as task workload scales from 6 to 14 tasks.</p>
+          </div>
+          <button id="btnRunScalingTest" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span>Run Benchmark</span>
+          </button>
+        </div>
+
+        <div class="scaling-results-grid">
+          <div class="table-responsive">
+            <table class="data-table" id="scalingTable">
+              <thead>
+                <tr>
+                  <th>Task Count (N)</th>
+                  <th>Bitmask Subsets (2^N)</th>
+                  <th>Theoretical Ops (3^N · 6)</th>
+                  <th>DP Solver Execution Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="scalingTableBody">
+                <!-- Dynamically populated scaling benchmark rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="scaling-chart-box">
+            <div class="chart-header">
+              <span class="chart-title">Solver Execution Time (ms)</span>
+            </div>
+            <div class="scaling-bars" id="scalingBars">
+              <!-- Visual bars for benchmark times -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Config Editor Modal -->
+  <div class="modal-backdrop" id="configModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h3 class="modal-title">Scenario & Workload Configuration</h3>
+          <span class="modal-subtitle">Modify servers, capacities, network links, and tasks</span>
+        </div>
+        <button class="modal-close" id="btnCloseConfigModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-modaltab="modalJson">JSON Editor (config.json)</button>
+        <button class="modal-tab-btn" data-modaltab="modalInteractive">Interactive Form</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- JSON Editor View -->
+        <div class="modal-tab-content active" id="modalJson">
+          <label for="jsonConfigTextarea" class="sr-only">Raw JSON Config</label>
+          <textarea id="jsonConfigTextarea" class="code-textarea" spellcheck="false" placeholder="Paste or edit config.json here..."></textarea>
+          <div class="json-editor-footer">
+            <button id="btnFormatJson" class="btn-sm">Format JSON</button>
+            <button id="btnResetDefaultJson" class="btn-sm">Reset to Default Report Config</button>
+          </div>
+        </div>
+
+        <!-- Interactive Form View -->
+        <div class="modal-tab-content" id="modalInteractive">
+          <div class="form-section">
+            <h4 class="form-section-title">Add / Edit Task</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="inputTaskCpu">CPU Units</label>
+                <input type="number" id="inputTaskCpu" min="1" max="12" value="2" class="form-input">
+              </div>
+              <div class="form-group">
+                <label for="inputTaskTraffic">Traffic (req/s)</label>
+                <input type="number" id="inputTaskTraffic" min="1" max="500" value="50" class="form-input">
+              </div>
+              <div class="form-group">
+                <label for="selectTaskAnchor">Anchor Server</label>
+                <select id="selectTaskAnchor" class="form-input">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <button id="btnAddTask" class="btn btn-secondary" style="align-self: flex-end;">+ Add Task</button>
+            </div>
+          </div>
+          <div class="current-tasks-list" id="currentTasksList">
+            <!-- List of current tasks with delete buttons -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelConfig">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveApplyConfig">Save & Re-run Optimization</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Report Modal -->
+  <div class="modal-backdrop" id="exportModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h3 class="modal-title">Export Placement Results</h3>
+          <span class="modal-subtitle">Copy or download optimization reports and datasets</span>
+        </div>
+        <button class="modal-close" id="btnCloseExportModal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="export-actions-grid">
+          <button class="btn btn-secondary" id="btnDownloadJson">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Download config.json</span>
+          </button>
+
+          <button class="btn btn-secondary" id="btnDownloadCsv">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span>Download Placement CSV</span>
+          </button>
+
+          <button class="btn btn-secondary" id="btnCopyReport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span>Copy Markdown Summary</span>
+          </button>
+        </div>
+
+        <div class="export-preview-wrap">
+          <label for="exportPreviewArea" class="form-label">Report Preview</label>
+          <textarea id="exportPreviewArea" class="code-textarea" readonly></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
