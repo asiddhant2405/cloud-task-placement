@@ -3,9 +3,14 @@
 > **Latency-Aware VM & Replica Placement Optimization Engine**  
 > Powered by Graph Theory, Minimum Spanning Trees (Kruskal & Prim), All-Pairs Dijkstra, and Exact Capacity-Aware Dynamic Programming.
 
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-black?style=flat&logo=vercel)](https://vercel.com)
+[![Vercel Live Site](https://img.shields.io/badge/Vercel-Live%20Site-black?style=flat&logo=vercel)](https://cloud-task-placement.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-181717?style=flat&logo=github)](https://github.com/asiddhant2405/cloud-task-placement)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
+🔗 **Live Production Site:** [https://cloud-task-placement.vercel.app](https://cloud-task-placement.vercel.app)  
+📁 **GitHub Repository:** [https://github.com/asiddhant2405/cloud-task-placement](https://github.com/asiddhant2405/cloud-task-placement)
+
 
 ---
 
